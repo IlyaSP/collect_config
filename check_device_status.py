@@ -1,3 +1,4 @@
+#!/usr/bin/env python3.6
 # -*- coding: utf-8 -*-
 
 import sqlite3
@@ -8,32 +9,35 @@ import queue
 import time
 import sys
 
+path_to_db = r"/home/admin/collect_config/db.sqlite3"
 start = datetime.datetime.now()
-print(start, "\n")
+print("\n========================================\r\n"
+      "{0}\r\n"
+      "===========================================\n".format(start))
 
 
 def TcpConnect(ip, telnet_port=23, ssh_port=22):
     """Check availability telnet or ssh"""
-    print("Start check available device port22-23")
+    # print("Start check available device port 22-23")
     session = socket.socket()
-    session.settimeout(3)
+    session.settimeout(2)
     result = session.connect_ex((ip, ssh_port))
     session.close()
-    print(result)
+    # print("Result connect SSH {0}".format(result))
     if result == 0:
-        print('Start SSH')
+        print('Device: {0} OK'.format(ip))
         status = 'OK'
     else:
         session = socket.socket()
-        session.settimeout(3)
+        session.settimeout(2)
         result = session.connect_ex((ip, telnet_port))
         session.close()
-        print(result)
+        # print("Result connect Telnet {0}".format(result))
         if result == 0:
-            print('Start Telnet')
+            print('Device: {0} OK'.format(ip))
             status = 'OK'
         else:
-            print('Device unreachable')
+            print('Device {0} unreachable'.format(ip))
             status = 'Unreachable'
     return status
 
@@ -45,11 +49,10 @@ def update_data_in_database(device_id, old_status, status):
 
     if status != old_status:
         try:
-            con = sqlite3.connect('/home/ilya/collect_config/db.sqlite3',
-                                 detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-            print('Connect sucess')
+            con = sqlite3.connect(path_to_db, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+            # print('Connect to db sucess')
         except sqlite3.Error as e:
-            print(e)
+            print("Error connect to DB: {0}".format(e))
 
         cur = con.cursor()
         cur.execute(
@@ -71,7 +74,7 @@ def check_status_device(work_queue):
             sys.exit()
         # Получаем задание из очереди
         i = work_queue.get()
-        print('DEVICE: ', i)
+        # print('DEVICE: ', i)
         # из строки вида xx.xx.xx.xx;11;OK получаем массив в котором содержится ip adress, device id, OK
         # разделяя строку по ";"
         data = i.split(";")
@@ -82,17 +85,16 @@ def check_status_device(work_queue):
         update_data_in_database(device_id, old_status, status)
         # Сообщаем о выполненном задании
         work_queue.task_done()
-        print(u'Очередь: %s завершилась' % i)
+        # print(u'Очередь: %s завершилась' % i)
 
 
 try:
-    con = sqlite3.connect('/home/ilya/collect_config/db.sqlite3',
-                          detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-    print('Connect sucess')
-    print(con)
+    con = sqlite3.connect(path_to_db, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+    # print('Connect sucess')
+    # print(con)
 
 except sqlite3.Error as e:
-    print(e)
+    print("Error connect to DB: {0}".format(e))
 
 cur = con.cursor()
 cur.execute('SELECT * FROM collect_configs_device')
@@ -114,15 +116,15 @@ for i in res:
 
 # Создаем и запускаем потоки, которые будут обслуживать очередь
 for i in range(7):
-    print(u'Поток', str(i), u'стартовал')
+    # print(u'Поток', str(i), u'стартовал')
     # print("kolichestvo activnyh potokov: ", threading.activeCount())
     t1 = threading.Thread(target=check_status_device, args=(work_queue,))
     t1.setDaemon(True)
     t1.start()
-    time.sleep(0.01)
+    time.sleep(0.1)
 
 
 work_queue.join()  # Ставим блокировку до тех пор пока не будут выполнены все задания
 
 end = datetime.datetime.now()
-print('Lead time: '.format(end - start))
+print("Lead time: {0}".format(end-start))
