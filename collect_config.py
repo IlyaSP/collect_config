@@ -23,6 +23,7 @@ print("\n========================================\r\n"
 
 
 def connect_to_DB(path_to_db):
+    # print("Start function 'connect_to_DB'")
     try:
         con = sqlite3.connect(path_to_db, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
@@ -227,6 +228,7 @@ def get_oldhash_current_number_configs(device_id, path_to_db):
 
 
 def insert_config_db(device_id, hash_new, config, ip, hostname):
+    """Function add row in DB"""
     con = connect_to_DB(path_to_db)
     cur = con.cursor()
     date_added = datetime.datetime.now()
@@ -243,6 +245,7 @@ def insert_config_db(device_id, hash_new, config, ip, hostname):
 
 
 def update_config_db(config, id_string, hash_new, ip, hostname):
+    """Function update row in DB"""
     con = connect_to_DB(path_to_db)
     cur = con.cursor()
     date_added = datetime.datetime.now()
@@ -255,6 +258,27 @@ def update_config_db(config, id_string, hash_new, ip, hostname):
     print(msg)
     return msg
 
+
+def delete_config_db(delete_id_config):
+    """Function delete row in DB"""
+    print("Start function 'delete_config_db'")
+    con = connect_to_DB(path_to_db)
+    cur = con.cursor()
+    try:
+        for i in delete_id_config:
+            print(type(i), i)
+            #cur = con.cursor()
+            cur.execute('DELETE FROM collect_configs_config WHERE Id = ?', (i,))
+        cur.close()
+        con.commit()
+        con.close()
+        msg = "Config whith ids {0} was deleted".format(delete_id_config)
+        print(msg)
+    except Exception as e:
+        print("Error DB: {0}".format(e))
+        msg = e
+
+    return msg
 
 def get_config(work_queue):
     while True:
@@ -302,6 +326,10 @@ def get_config(work_queue):
         else:
             print("The number of configurations for {0} - {1} exceeds the limit in {2} configurations".format(hostname, ip,
                                                                                                           max_configs))
+            for i in range(max_configs, len(configs)):
+                print("config:{0} {1}".format(configs[i][0], configs[i][2]))
+                delete_id_config.append(int(configs[i][0]))
+            delete_config_db(delete_id_config)
         # Сообщаем о выполненном задании
         work_queue.task_done()
         # print(u'Очередь: %s завершилась' % i)
